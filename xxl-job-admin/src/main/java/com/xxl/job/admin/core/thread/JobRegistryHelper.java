@@ -15,6 +15,7 @@ import java.util.concurrent.*;
 
 /**
  * job registry instance
+ * 任务注册协助类
  * @author xuxueli 2016-10-02 19:10:24
  */
 public class JobRegistryHelper {
@@ -32,6 +33,7 @@ public class JobRegistryHelper {
 	public void start(){
 
 		// for registry or remove
+		// 注册或者删除线程池初始化，拒绝策略是由父线程执行，同时会打印日志
 		registryOrRemoveThreadPool = new ThreadPoolExecutor(
 				2,
 				10,
@@ -53,27 +55,33 @@ public class JobRegistryHelper {
 				});
 
 		// for monitor
+		// 注册监控线程 30秒【sleep】执行一次,维护注册表信息， 判断在线超时时间90s
 		registryMonitorThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				while (!toStop) {
 					try {
 						// auto registry group
+						// 查询任务组数据。对应xxl-job-group表，有数据时校验自动任务执行器注册信息
 						List<XxlJobGroup> groupList = XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().findByAddressType(0);
 						if (groupList!=null && !groupList.isEmpty()) {
 
 							// remove dead address (admin/executor)
+							//  从xxl-job-registry中删除超时90s的机器,不分是否自动注册
 							List<Integer> ids = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().findDead(RegistryConfig.DEAD_TIMEOUT, new Date());
 							if (ids!=null && ids.size()>0) {
+								// 移除超时掉线的执行器。执行器的更新时间通过com.xxl.job.core.biz.AdminBiz.registry完成，也就是执行器和admin之间的心跳
 								XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().removeDead(ids);
 							}
 
 							// fresh online address (admin/executor)
+							// 从xxl-job-registry中获取执行器地址，刷新到xxl-job-group中。刷新在线地址 包含执行器注册的和admin
 							HashMap<String, List<String>> appAddressMap = new HashMap<String, List<String>>();
 							List<XxlJobRegistry> list = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().findAll(RegistryConfig.DEAD_TIMEOUT, new Date());
 							if (list != null) {
 								for (XxlJobRegistry item: list) {
 									if (RegistryConfig.RegistType.EXECUTOR.name().equals(item.getRegistryGroup())) {
+										// group表的appname对应registry表的registrykey字段
 										String appname = item.getRegistryKey();
 										List<String> registryList = appAddressMap.get(appname);
 										if (registryList == null) {
@@ -93,7 +101,9 @@ public class JobRegistryHelper {
 								List<String> registryList = appAddressMap.get(group.getAppname());
 								String addressListStr = null;
 								if (registryList!=null && !registryList.isEmpty()) {
+									// 对地址进行排序
 									Collections.sort(registryList);
+									// 用逗号分隔 http:127.0.0.1:9092/,http://127.0.0.1:9903/
 									StringBuilder addressListSB = new StringBuilder();
 									for (String item:registryList) {
 										addressListSB.append(item).append(",");
@@ -103,7 +113,7 @@ public class JobRegistryHelper {
 								}
 								group.setAddressList(addressListStr);
 								group.setUpdateTime(new Date());
-
+								// 更新xxl-job-group中的数据。注册信息中没有数据也会执行更新，将执行器地址更新为空
 								XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().update(group);
 							}
 						}
@@ -113,6 +123,7 @@ public class JobRegistryHelper {
 						}
 					}
 					try {
+						// 30s执行一次，通过sleep实现
 						TimeUnit.SECONDS.sleep(RegistryConfig.BEAT_TIMEOUT);
 					} catch (InterruptedException e) {
 						if (!toStop) {
@@ -123,6 +134,7 @@ public class JobRegistryHelper {
 				logger.info(">>>>>>>>>>> xxl-job, job registry monitor thread stop");
 			}
 		});
+		// 守护线程
 		registryMonitorThread.setDaemon(true);
 		registryMonitorThread.setName("xxl-job, admin JobRegistryMonitorHelper-registryMonitorThread");
 		registryMonitorThread.start();
@@ -146,24 +158,32 @@ public class JobRegistryHelper {
 
 	// ---------------------- helper ----------------------
 
+	/**
+	 * 执行器注册
+	 * @param registryParam
+	 * @return
+	 */
 	public ReturnT<String> registry(RegistryParam registryParam) {
 
-		// valid
+		// 检验参数
 		if (!StringUtils.hasText(registryParam.getRegistryGroup())
 				|| !StringUtils.hasText(registryParam.getRegistryKey())
 				|| !StringUtils.hasText(registryParam.getRegistryValue())) {
 			return new ReturnT<String>(ReturnT.FAIL_CODE, "Illegal Argument.");
 		}
 
-		// async execute
+		// 异步执行
 		registryOrRemoveThreadPool.execute(new Runnable() {
 			@Override
 			public void run() {
-				int ret = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registryUpdate(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue(), new Date());
+				// 先更新修改时间
+				int ret = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registryUpdate(registryParam.getRegistryGroup(),
+						registryParam.getRegistryKey(), registryParam.getRegistryValue(), new Date());
 				if (ret < 1) {
+					// 说没有数据，则新增数据
 					XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registrySave(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue(), new Date());
 
-					// fresh
+					// fresh 空实现
 					freshGroupRegistryInfo(registryParam);
 				}
 			}
@@ -172,6 +192,11 @@ public class JobRegistryHelper {
 		return ReturnT.SUCCESS;
 	}
 
+	/**
+	 * 删除注册
+	 * @param registryParam
+	 * @return
+	 */
 	public ReturnT<String> registryRemove(RegistryParam registryParam) {
 
 		// valid
@@ -185,9 +210,10 @@ public class JobRegistryHelper {
 		registryOrRemoveThreadPool.execute(new Runnable() {
 			@Override
 			public void run() {
+				// 注册删除
 				int ret = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registryDelete(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue());
 				if (ret > 0) {
-					// fresh
+					// fresh 空实现
 					freshGroupRegistryInfo(registryParam);
 				}
 			}

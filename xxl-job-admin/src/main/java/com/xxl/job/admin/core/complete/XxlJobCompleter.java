@@ -20,6 +20,7 @@ public class XxlJobCompleter {
     private static Logger logger = LoggerFactory.getLogger(XxlJobCompleter.class);
 
     /**
+     * 通用任务结果刷新入口
      * common fresh handle entrance (limit only once)
      *
      * @param xxlJobLog
@@ -27,7 +28,7 @@ public class XxlJobCompleter {
      */
     public static int updateHandleInfoAndFinish(XxlJobLog xxlJobLog) {
 
-        // finish
+        // finish 处理任务结果，有子任务执行子任务
         finishJob(xxlJobLog);
 
         // text最大64kb 避免长度过长
@@ -42,13 +43,17 @@ public class XxlJobCompleter {
 
     /**
      * do somethind to finish job
+     * 处理任务结果，有子任务执行子任务
      */
     private static void finishJob(XxlJobLog xxlJobLog){
 
         // 1、handle success, to trigger child job
         String triggerChildMsg = null;
+        // 执行成功
         if (XxlJobContext.HANDLE_CODE_SUCCESS == xxlJobLog.getHandleCode()) {
+            // 获取任务信息
             XxlJobInfo xxlJobInfo = XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().loadById(xxlJobLog.getJobId());
+            // 判断是否有子任务
             if (xxlJobInfo!=null && xxlJobInfo.getChildJobId()!=null && xxlJobInfo.getChildJobId().trim().length()>0) {
                 triggerChildMsg = "<br><br><span style=\"color:#00c0ef;\" > >>>>>>>>>>>"+ I18nUtil.getString("jobconf_trigger_child_run") +"<<<<<<<<<<< </span><br>";
 
@@ -56,11 +61,11 @@ public class XxlJobCompleter {
                 for (int i = 0; i < childJobIds.length; i++) {
                     int childJobId = (childJobIds[i]!=null && childJobIds[i].trim().length()>0 && isNumeric(childJobIds[i]))?Integer.valueOf(childJobIds[i]):-1;
                     if (childJobId > 0) {
-
+                        // 调用子任务
                         JobTriggerPoolHelper.trigger(childJobId, TriggerTypeEnum.PARENT, -1, null, null, null);
                         ReturnT<String> triggerChildResult = ReturnT.SUCCESS;
 
-                        // add msg
+                        // 添加子任务调用日志
                         triggerChildMsg += MessageFormat.format(I18nUtil.getString("jobconf_callback_child_msg1"),
                                 (i+1),
                                 childJobIds.length,
@@ -68,6 +73,7 @@ public class XxlJobCompleter {
                                 (triggerChildResult.getCode()==ReturnT.SUCCESS_CODE?I18nUtil.getString("system_success"):I18nUtil.getString("system_fail")),
                                 triggerChildResult.getMsg());
                     } else {
+                        // 触发失败，任务id格式错误
                         triggerChildMsg += MessageFormat.format(I18nUtil.getString("jobconf_callback_child_msg2"),
                                 (i+1),
                                 childJobIds.length,
@@ -77,7 +83,7 @@ public class XxlJobCompleter {
 
             }
         }
-
+        // 设置处理日志
         if (triggerChildMsg != null) {
             xxlJobLog.setHandleMsg( xxlJobLog.getHandleMsg() + triggerChildMsg );
         }
@@ -87,6 +93,11 @@ public class XxlJobCompleter {
 
     }
 
+    /**
+     * 是否是数字
+     * @param str
+     * @return
+     */
     private static boolean isNumeric(String str){
         try {
             int result = Integer.valueOf(str);

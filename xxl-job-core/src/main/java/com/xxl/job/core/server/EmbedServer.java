@@ -24,6 +24,7 @@ import java.util.concurrent.*;
 
 /**
  * Copy from : https://github.com/xuxueli/xxl-rpc
+ * 内嵌服务器
  *
  * @author xuxueli 2020-04-11 21:25
  */
@@ -38,9 +39,10 @@ public class EmbedServer {
         thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                // param
+                // 经典 1+M+N Reactor 模式
                 EventLoopGroup bossGroup = new NioEventLoopGroup();
                 EventLoopGroup workerGroup = new NioEventLoopGroup();
+                // 业务线程池
                 ThreadPoolExecutor bizThreadPool = new ThreadPoolExecutor(
                         0,
                         200,
@@ -71,6 +73,7 @@ public class EmbedServer {
                                             .addLast(new IdleStateHandler(0, 0, 30 * 3, TimeUnit.SECONDS))  // beat 3N, close if idle
                                             .addLast(new HttpServerCodec())
                                             .addLast(new HttpObjectAggregator(5 * 1024 * 1024))  // merge request & reponse to FULL
+                                            // 业务处理
                                             .addLast(new EmbedHttpServerHandler(executorBiz, accessToken, bizThreadPool));
                                 }
                             })
@@ -81,7 +84,7 @@ public class EmbedServer {
 
                     logger.info(">>>>>>>>>>> xxl-job remoting server start success, nettype = {}, port = {}", EmbedServer.class, port);
 
-                    // start registry
+                    // 开启注册调度中心，发送心跳
                     startRegistry(appname, address);
 
                     // wait util stop
@@ -112,7 +115,7 @@ public class EmbedServer {
             thread.interrupt();
         }
 
-        // stop registry
+        // 关闭注册调度中心
         stopRegistry();
         logger.info(">>>>>>>>>>> xxl-job remoting server destroy success.");
     }
@@ -144,9 +147,13 @@ public class EmbedServer {
         protected void channelRead0(final ChannelHandlerContext ctx, FullHttpRequest msg) throws Exception {
             // request parse
             //final byte[] requestBytes = ByteBufUtil.getBytes(msg.content());    // byteBuf.toString(io.netty.util.CharsetUtil.UTF_8);
+            // 解析请求数据
             String requestData = msg.content().toString(CharsetUtil.UTF_8);
+            // 获取uri,后面通过uri来处理不同的请求
             String uri = msg.uri();
+            // 获取请求方式,Post/Get
             HttpMethod httpMethod = msg.method();
+            // 保持长连接
             boolean keepAlive = HttpUtil.isKeepAlive(msg);
             String accessTokenReq = msg.headers().get(XxlJobRemotingUtil.XXL_JOB_ACCESS_TOKEN);
 
@@ -154,7 +161,7 @@ public class EmbedServer {
             bizThreadPool.execute(new Runnable() {
                 @Override
                 public void run() {
-                    // do invoke
+                    // 业务调用
                     Object responseObj = process(httpMethod, uri, requestData, accessTokenReq);
 
                     // to json
@@ -166,21 +173,31 @@ public class EmbedServer {
             });
         }
 
+        /**
+         * 执行触发器
+         * @param httpMethod
+         * @param uri
+         * @param requestData
+         * @param accessTokenReq
+         * @return
+         */
         private Object process(HttpMethod httpMethod, String uri, String requestData, String accessTokenReq) {
-            // valid
+            // 只支持 Post请求
             if (HttpMethod.POST != httpMethod) {
                 return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, HttpMethod not support.");
             }
+            // 校验是否是非法的url
             if (uri == null || uri.trim().length() == 0) {
                 return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, uri-mapping empty.");
             }
+            // 校验 token
             if (accessToken != null
                     && accessToken.trim().length() > 0
                     && !accessToken.equals(accessTokenReq)) {
                 return new ReturnT<String>(ReturnT.FAIL_CODE, "The access token is wrong.");
             }
 
-            // services mapping
+            // services mapping 服务执行映射
             try {
                 switch (uri) {
                     case "/beat":
@@ -207,6 +224,7 @@ public class EmbedServer {
         }
 
         /**
+         * 结果响应
          * write response
          */
         private void writeResponse(ChannelHandlerContext ctx, boolean keepAlive, String responseJson) {
@@ -244,6 +262,11 @@ public class EmbedServer {
 
     // ---------------------- registry ----------------------
 
+    /**
+     * 开启注册，发送心跳
+     * @param appname
+     * @param address
+     */
     public void startRegistry(final String appname, final String address) {
         // start registry
         ExecutorRegistryThread.getInstance().start(appname, address);

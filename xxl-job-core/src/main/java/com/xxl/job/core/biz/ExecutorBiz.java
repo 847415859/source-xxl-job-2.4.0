@@ -4,10 +4,12 @@ import com.xxl.job.core.biz.model.*;
 
 /**
  * Created by xuxueli on 17/3/1.
+ * 业务执行器
  */
 public interface ExecutorBiz {
 
     /**
+     * 心跳
      * beat
      * @return
      */
@@ -15,6 +17,7 @@ public interface ExecutorBiz {
 
     /**
      * idle beat
+     * 空闲心跳
      *
      * @param idleBeatParam
      * @return
@@ -22,7 +25,7 @@ public interface ExecutorBiz {
     public ReturnT<String> idleBeat(IdleBeatParam idleBeatParam);
 
     /**
-     * run
+     * 业务执行
      * @param triggerParam
      * @return
      */

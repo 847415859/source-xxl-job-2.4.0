@@ -14,6 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 任务警告器
+ */
 @Component
 public class JobAlarmer implements ApplicationContextAware, InitializingBean {
     private static Logger logger = LoggerFactory.getLogger(JobAlarmer.class);
@@ -28,6 +31,7 @@ public class JobAlarmer implements ApplicationContextAware, InitializingBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
+        // 获取到所有告警实现 实现 JobAlarm
         Map<String, JobAlarm> serviceBeanMap = applicationContext.getBeansOfType(JobAlarm.class);
         if (serviceBeanMap != null && serviceBeanMap.size() > 0) {
             jobAlarmList = new ArrayList<JobAlarm>(serviceBeanMap.values());
@@ -36,7 +40,7 @@ public class JobAlarmer implements ApplicationContextAware, InitializingBean {
 
     /**
      * job alarm
-     *
+     *  任务告警
      * @param info
      * @param jobLog
      * @return

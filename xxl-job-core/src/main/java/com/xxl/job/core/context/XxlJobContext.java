@@ -1,6 +1,7 @@
 package com.xxl.job.core.context;
 
 /**
+ * 任务上下文对象
  * xxl-job context
  *
  * @author xuxueli 2020-05-21
@@ -8,8 +9,17 @@ package com.xxl.job.core.context;
  */
 public class XxlJobContext {
 
+    /**
+     * 处理成功
+     */
     public static final int HANDLE_CODE_SUCCESS = 200;
+    /**
+     * 处理失败
+     */
     public static final int HANDLE_CODE_FAIL = 500;
+    /**
+     * 处理超时
+     */
     public static final int HANDLE_CODE_TIMEOUT = 502;
 
     // ---------------------- base info ----------------------

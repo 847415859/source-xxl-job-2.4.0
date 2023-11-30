@@ -12,6 +12,7 @@ import java.io.StringWriter;
 import java.util.Date;
 
 /**
+ * 主要处理上下文对象 XxlJobContext
  * helper for xxl-job
  *
  * @author xuxueli 2020-11-05
@@ -21,6 +22,7 @@ public class XxlJobHelper {
     // ---------------------- base info ----------------------
 
     /**
+     * 获取当前上下文对象的 jobId
      * current JobId
      *
      * @return
@@ -35,6 +37,7 @@ public class XxlJobHelper {
     }
 
     /**
+     * 获取当前上下文对象的任务执行参数
      * current JobParam
      *
      * @return

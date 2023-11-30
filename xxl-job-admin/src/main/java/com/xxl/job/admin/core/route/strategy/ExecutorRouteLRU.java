@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
+ * 最近最久未使用：最久未使用的机器优先被选举
+ *
  * 单个JOB对应的每个执行器，最久为使用的优先被选举
  *      a、LFU(Least Frequently Used)：最不经常使用，频率/次数
  *      b(*)、LRU(Least Recently Used)：最近最久未使用，时间
@@ -36,7 +38,8 @@ public class ExecutorRouteLRU extends ExecutorRouter {
             /**
              * LinkedHashMap
              *      a、accessOrder：true=访问顺序排序（get/put时排序）；false=插入顺序排期；
-             *      b、removeEldestEntry：新增元素时将会调用，返回true时会删除最老元素；可封装LinkedHashMap并重写该方法，比如定义最大容量，超出是返回true即可实现固定长度的LRU算法；
+             *      b、removeEldestEntry：新增元素时将会调用，返回true时会删除最老元素；可封装LinkedHashMap并重写该方法，
+             *      比如定义最大容量，超出是返回true即可实现固定长度的LRU算法；
              */
             lruItem = new LinkedHashMap<String, String>(16, 0.75f, true);
             jobLRUMap.putIfAbsent(jobId, lruItem);
@@ -71,6 +74,25 @@ public class ExecutorRouteLRU extends ExecutorRouter {
     public ReturnT<String> route(TriggerParam triggerParam, List<String> addressList) {
         String address = route(triggerParam.getJobId(), addressList);
         return new ReturnT<String>(address);
+    }
+
+    /**
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        LinkedHashMap<String, String> linkedHashMap = new LinkedHashMap<String, String>(16, 0.75f, true);
+        linkedHashMap.put("1","1");
+        linkedHashMap.put("2","2");
+        linkedHashMap.put("3","3");
+        linkedHashMap.put("4","4");
+
+        linkedHashMap.keySet().forEach(System.out::printf); // 1234
+
+        linkedHashMap.get("3");
+        linkedHashMap.keySet().forEach(System.out::printf); // 1243
+        linkedHashMap.get("1");
+        linkedHashMap.keySet().forEach(System.out::printf); // 2431
     }
 
 }

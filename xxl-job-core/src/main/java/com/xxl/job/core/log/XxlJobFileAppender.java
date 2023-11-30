@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
+ * 日志文件存储
  * store trigger log in each log-file
  * @author xuxueli 2016-3-12 19:25:12
  */

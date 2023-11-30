@@ -20,6 +20,7 @@ import java.util.Set;
 
 /**
  * job alarm by email
+ * 短信告警
  *
  * @author xuxueli 2020-01-19
  */

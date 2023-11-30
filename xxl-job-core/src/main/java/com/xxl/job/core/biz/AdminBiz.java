@@ -15,6 +15,8 @@ public interface AdminBiz {
     // ---------------------- callback ----------------------
 
     /**
+     * 结果回调
+     *
      * callback
      *
      * @param callbackParamList
@@ -26,7 +28,7 @@ public interface AdminBiz {
     // ---------------------- registry ----------------------
 
     /**
-     * registry
+     * 注册执行器
      *
      * @param registryParam
      * @return
@@ -34,7 +36,7 @@ public interface AdminBiz {
     public ReturnT<String> registry(RegistryParam registryParam);
 
     /**
-     * registry remove
+     * 注销执行器
      *
      * @param registryParam
      * @return

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 执行器注册心跳线程
  * Created by xuxueli on 17/3/2.
  */
 public class ExecutorRegistryThread {
@@ -23,6 +24,7 @@ public class ExecutorRegistryThread {
 
     private Thread registryThread;
     private volatile boolean toStop = false;
+
     public void start(final String appname, final String address){
 
         // valid
@@ -39,10 +41,12 @@ public class ExecutorRegistryThread {
             @Override
             public void run() {
 
-                // registry
+                // registry     30秒调用一次
                 while (!toStop) {
                     try {
+                        // 构建注册请求参数
                         RegistryParam registryParam = new RegistryParam(RegistryConfig.RegistType.EXECUTOR.name(), appname, address);
+                        // 获取到所有的调度中心
                         for (AdminBiz adminBiz: XxlJobExecutor.getAdminBizList()) {
                             try {
                                 ReturnT<String> registryResult = adminBiz.registry(registryParam);
@@ -67,6 +71,7 @@ public class ExecutorRegistryThread {
 
                     try {
                         if (!toStop) {
+                            // sleep 30s
                             TimeUnit.SECONDS.sleep(RegistryConfig.BEAT_TIMEOUT);
                         }
                     } catch (InterruptedException e) {
@@ -76,7 +81,7 @@ public class ExecutorRegistryThread {
                     }
                 }
 
-                // registry remove
+                // registry remove  注册移除
                 try {
                     RegistryParam registryParam = new RegistryParam(RegistryConfig.RegistType.EXECUTOR.name(), appname, address);
                     for (AdminBiz adminBiz: XxlJobExecutor.getAdminBizList()) {

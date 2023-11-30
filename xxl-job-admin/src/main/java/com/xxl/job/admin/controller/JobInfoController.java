@@ -145,7 +145,7 @@ public class JobInfoController {
 		if (executorParam == null) {
 			executorParam = "";
 		}
-
+		// 发器类型，手动 ，重试次数，'执行器任务分片参数，格式如 1/2'，任务参数，机器地址
 		JobTriggerPoolHelper.trigger(id, TriggerTypeEnum.MANUAL, -1, null, executorParam, addressList);
 		return ReturnT.SUCCESS;
 	}

@@ -15,6 +15,7 @@ import java.security.cert.X509Certificate;
 import java.util.Map;
 
 /**
+ * 远程调用工具
  * @author xuxueli 2018-11-25 00:55:31
  */
 public class XxlJobRemotingUtil {

@@ -31,16 +31,17 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
     @Override
     public void afterSingletonsInstantiated() {
 
+        // 移除旧类注解JobHandler，推荐使用基于方法注解 "@XxlJob" 的方式进行任务开发；(如需保留类注解JobHandler使用方式，可以参考旧版逻辑定制开发);
         // init JobHandler Repository
         /*initJobHandlerRepository(applicationContext);*/
 
-        // init JobHandler Repository (for method)
+        // 初始化任务 标记XxlJob注解的方法类型的
         initJobHandlerMethodRepository(applicationContext);
 
-        // refresh GlueFactory
+        // 刷新 GlueFactory
         GlueFactory.refreshInstance(1);
 
-        // super start
+        // 调用父类接口，启动服务
         try {
             super.start();
         } catch (Exception e) {
@@ -77,16 +78,27 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
         }
     }*/
 
+    /**
+     * 初始化
+     * <ol>
+     *  <li>加载所有非懒加载Bean<li/>
+     *  <li>找出标记了XxlJob注解的方法，并解析初始化和销毁属性，并构造MethodJobHandler类<li/>
+     *  <li>注册MethodJobHandler到jobHandlerRepository 缓存中。MethodJobHandler任务最终是通过反射调用执行的。<li/>
+     * <ol/>
+     *
+     * @param applicationContext
+     */
     private void initJobHandlerMethodRepository(ApplicationContext applicationContext) {
         if (applicationContext == null) {
             return;
         }
-        // init job handler from method
+        // 获取鄋的Bean对象名称
         String[] beanDefinitionNames = applicationContext.getBeanNamesForType(Object.class, false, true);
         for (String beanDefinitionName : beanDefinitionNames) {
 
             // get bean
             Object bean = null;
+            // 判断类上是否有 @Lazy 注解，如果有则跳过
             Lazy onBean = applicationContext.findAnnotationOnBean(beanDefinitionName, Lazy.class);
             if (onBean!=null){
                 logger.debug("xxl-job annotation scan, skip @Lazy Bean:{}", beanDefinitionName);
@@ -95,7 +107,7 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
                 bean = applicationContext.getBean(beanDefinitionName);
             }
 
-            // filter method
+            // 借助 MethodIntrospector 获取到所有加上 @XxlJob 注解的方法
             Map<Method, XxlJob> annotatedMethods = null;   // referred to ：org.springframework.context.event.EventListenerMethodProcessor.processBean
             try {
                 annotatedMethods = MethodIntrospector.selectMethods(bean.getClass(),
@@ -112,7 +124,7 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
                 continue;
             }
 
-            // generate and regist method job handler
+            // 注册任务处理器
             for (Map.Entry<Method, XxlJob> methodXxlJobEntry : annotatedMethods.entrySet()) {
                 Method executeMethod = methodXxlJobEntry.getKey();
                 XxlJob xxlJob = methodXxlJobEntry.getValue();

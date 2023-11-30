@@ -16,6 +16,7 @@ import java.util.concurrent.*;
 
 /**
  * job lose-monitor instance
+ * 任务结果处理
  *
  * @author xuxueli 2015-9-1 18:05:56
  */
@@ -35,6 +36,7 @@ public class JobCompleteHelper {
 	public void start(){
 
 		// for callback
+		// 回调线程池
 		callbackThreadPool = new ThreadPoolExecutor(
 				2,
 				20,
@@ -50,6 +52,7 @@ public class JobCompleteHelper {
 				new RejectedExecutionHandler() {
 					@Override
 					public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+						// 超过最大数量后，父线程执行任务
 						r.run();
 						logger.warn(">>>>>>>>>>> xxl-job, callback too fast, match threadpool rejected handler(run now).");
 					}
@@ -57,12 +60,14 @@ public class JobCompleteHelper {
 
 
 		// for monitor
+		// 监听线程。每60秒执行一次
 		monitorThread = new Thread(new Runnable() {
 
 			@Override
 			public void run() {
 
 				// wait for JobTriggerPoolHelper-init
+				// 首次运行，暂停50毫秒，目的是为了让JobTriggerPoolHelper先初始化完成
 				try {
 					TimeUnit.MILLISECONDS.sleep(50);
 				} catch (InterruptedException e) {
@@ -75,6 +80,7 @@ public class JobCompleteHelper {
 				while (!toStop) {
 					try {
 						// 任务结果丢失处理：调度记录停留在 "运行中" 状态超过10min，且对应执行器心跳注册失败不在线，则将本地调度主动标记失败；
+						// 两个条件：1.运行中状态超过10min 2.心跳不在线
 						Date losedTime = DateUtil.addMinutes(new Date(), -10);
 						List<Long> losedJobIds  = XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().findLostJobIds(losedTime);
 
@@ -86,8 +92,9 @@ public class JobCompleteHelper {
 
 								jobLog.setHandleTime(new Date());
 								jobLog.setHandleCode(ReturnT.FAIL_CODE);
+								//  任务结果丢失，标记失败
 								jobLog.setHandleMsg( I18nUtil.getString("joblog_lost_fail") );
-
+								// 处理任务结果，有子任务触发子任务
 								XxlJobCompleter.updateHandleInfoAndFinish(jobLog);
 							}
 
@@ -99,6 +106,7 @@ public class JobCompleteHelper {
 					}
 
                     try {
+						// 每60秒执行一次
                         TimeUnit.SECONDS.sleep(60);
                     } catch (Exception e) {
                         if (!toStop) {
@@ -112,6 +120,7 @@ public class JobCompleteHelper {
 
 			}
 		});
+		// 守护线程
 		monitorThread.setDaemon(true);
 		monitorThread.setName("xxl-job, admin JobLosedMonitorHelper");
 		monitorThread.start();
@@ -135,6 +144,11 @@ public class JobCompleteHelper {
 
 	// ---------------------- helper ----------------------
 
+	/**
+	 * 服务端处理客户端触发器执行回调
+	 * @param callbackParamList
+	 * @return
+	 */
 	public ReturnT<String> callback(List<HandleCallbackParam> callbackParamList) {
 
 		callbackThreadPool.execute(new Runnable() {
@@ -152,12 +166,14 @@ public class JobCompleteHelper {
 	}
 
 	private ReturnT<String> callback(HandleCallbackParam handleCallbackParam) {
-		// valid log item
+		// 加载log
 		XxlJobLog log = XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().load(handleCallbackParam.getLogId());
 		if (log == null) {
+			// 日志没找到返回异常
 			return new ReturnT<String>(ReturnT.FAIL_CODE, "log item not found.");
 		}
 		if (log.getHandleCode() > 0) {
+			// 说明重复执行
 			return new ReturnT<String>(ReturnT.FAIL_CODE, "log repeate callback.");     // avoid repeat callback, trigger child job etc
 		}
 
@@ -172,6 +188,7 @@ public class JobCompleteHelper {
 
 		// success, save log
 		log.setHandleTime(new Date());
+		// 更改处理状态,200正常,500错误
 		log.setHandleCode(handleCallbackParam.getHandleCode());
 		log.setHandleMsg(handleMsg.toString());
 		XxlJobCompleter.updateHandleInfoAndFinish(log);

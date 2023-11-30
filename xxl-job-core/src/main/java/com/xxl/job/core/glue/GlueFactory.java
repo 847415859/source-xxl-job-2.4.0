@@ -21,6 +21,11 @@ public class GlueFactory {
 	public static GlueFactory getInstance(){
 		return glueFactory;
 	}
+
+	/**
+	 * 刷新Glue实例
+	 * @param type
+	 */
 	public static void refreshInstance(int type){
 		if (type == 0) {
 			glueFactory = new GlueFactory();

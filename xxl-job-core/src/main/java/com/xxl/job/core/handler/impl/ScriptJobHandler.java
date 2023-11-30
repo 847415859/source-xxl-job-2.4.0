@@ -10,6 +10,9 @@ import com.xxl.job.core.util.ScriptUtil;
 import java.io.File;
 
 /**
+ * 脚本任务执行
+ * 借助 JDK ： Runtime.getRuntime().exec {@code  Runtime.getRuntime().exec()}
+ *
  * Created by xuxueli on 17/4/27.
  */
 public class ScriptJobHandler extends IJobHandler {

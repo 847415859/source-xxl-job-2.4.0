@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 任务调度日志文件清理线程
  * job file clean thread
  *
  * @author xuxueli 2017-12-29 16:23:43
@@ -27,9 +28,14 @@ public class JobLogFileCleanThread {
 
     private Thread localThread;
     private volatile boolean toStop = false;
+
+    /**
+     * 开启日志文件清理
+     * @param logRetentionDays  日志默认保留天数
+     */
     public void start(final long logRetentionDays){
 
-        // limit min value
+        // 日志最少保留3天
         if (logRetentionDays < 3 ) {
             return;
         }
@@ -54,15 +60,16 @@ public class JobLogFileCleanThread {
 
                             for (File childFile: childDirs) {
 
-                                // valid
+                                // 不是目录跳过
                                 if (!childFile.isDirectory()) {
                                     continue;
                                 }
+                                // 查询不到'-'则跳过
                                 if (childFile.getName().indexOf("-") == -1) {
                                     continue;
                                 }
 
-                                // file create date
+                                // file create date  获取文件创建时间,文件都是以年-月-日命名的
                                 Date logFileCreateDate = null;
                                 try {
                                     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -73,7 +80,7 @@ public class JobLogFileCleanThread {
                                 if (logFileCreateDate == null) {
                                     continue;
                                 }
-
+                                // 大于日志最大存活时间则清除
                                 if ((todayDate.getTime()-logFileCreateDate.getTime()) >= logRetentionDays * (24 * 60 * 60 * 1000) ) {
                                     FileUtil.deleteRecursively(childFile);
                                 }
@@ -89,6 +96,7 @@ public class JobLogFileCleanThread {
                     }
 
                     try {
+                        // 每天执行一次
                         TimeUnit.DAYS.sleep(1);
                     } catch (InterruptedException e) {
                         if (!toStop) {

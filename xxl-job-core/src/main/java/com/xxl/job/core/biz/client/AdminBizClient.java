@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * admin api test
- *
+ * 调度中心调用Api
  * @author xuxueli 2017-07-28 22:14:52
  */
 public class AdminBizClient implements AdminBiz {
